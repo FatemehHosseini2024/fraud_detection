@@ -162,6 +162,24 @@ plt.savefig(f"{OUTPUT_DIR}/v_features_distributions.png", dpi=150)
 plt.close()
 print("Saved: v_features_distributions.png")
 
+# V features distribution comparison by Class (KDE)
+v_features = [f"V{i}" for i in range(1, 29)]
+fig, axes = plt.subplots(7, 4, figsize=(18, 28))
+axes = axes.flatten()
+for i, col in enumerate(v_features):
+    sns.kdeplot(data=df, x=col, hue="Class", fill=True, alpha=0.5,
+                palette={0: "steelblue", 1: "firebrick"}, ax=axes[i],
+                common_norm=False, warn_singular=False)
+    axes[i].set_title(col, fontsize=9)
+    axes[i].set_xlabel("")
+    axes[i].set_ylabel("")
+    axes[i].legend(title="Class", labels=["Legit", "Fraud"], fontsize=6, title_fontsize=7)
+plt.suptitle("V1-V28 Distribution Comparison by Class (KDE)", fontsize=14, y=1.0)
+plt.tight_layout()
+plt.savefig(f"{OUTPUT_DIR}/v_features_kde_by_class.png", dpi=150)
+plt.close()
+print("Saved: v_features_kde_by_class.png")
+
 # V features by Class (boxplots for top correlated features)
 top_pos = class_corr.head(6).index.tolist()
 top_neg = class_corr.tail(6).index.tolist()
