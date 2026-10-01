@@ -41,8 +41,8 @@ for fold_idx, (fold_train, fold_val) in enumerate(folds, 1):
 
     for name, model in models.items():
         model.fit(X_train_fold, y_train_fold)
-        y_pred = model.predict(X_val_fold)
         y_proba = model.predict_proba(X_val_fold)[:, 1]
+        y_pred = (y_proba >= 0.5).astype(int)
 
         pr_auc = average_precision_score(y_val_fold, y_proba)
         precision = precision_score(y_val_fold, y_pred, zero_division=0)
