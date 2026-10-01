@@ -11,6 +11,7 @@ print("Data Preprocessing")
 print("=" * 70)
 
 df = pd.read_csv(DATA_PATH)
+df = df.drop(columns=["Time"])
 print(f"Original dataset: {df.shape[0]} rows x {df.shape[1]} columns")
 
 dup_count = df.duplicated().sum()
