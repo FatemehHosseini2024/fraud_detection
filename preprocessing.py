@@ -12,10 +12,15 @@ print("=" * 70)
 df = pd.read_csv(DATA_PATH)
 print(f"Original dataset: {df.shape[0]} rows x {df.shape[1]} columns")
 
-dup_count = df.duplicated().sum()
-print(f"Duplicate rows: {dup_count}")
+df = df.drop(columns=["Time"])
+df.insert(0, "transaction_id", range(len(df)))
+print("Replaced 'Time' with 'transaction_id' (unique values)")
 
-df = df.drop_duplicates().reset_index(drop=True)
+dup_cols = [col for col in df.columns if col != "transaction_id"]
+dup_count = df.duplicated(subset=dup_cols).sum()
+print(f"Duplicate rows (excluding transaction_id): {dup_count}")
+
+df = df.drop_duplicates(subset=dup_cols).reset_index(drop=True)
 print(f"After removing duplicates: {df.shape[0]} rows")
 
 print("\nStandardizing 'Amount' column using StandardScaler...")
