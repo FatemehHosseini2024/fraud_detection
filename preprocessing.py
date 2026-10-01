@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 from sklearn.preprocessing import StandardScaler
 import os
 
@@ -21,6 +22,12 @@ print(f"Duplicate rows (excluding transaction_id): {dup_count}")
 
 df = df.drop_duplicates(subset=dup_cols).reset_index(drop=True)
 print(f"After removing duplicates: {df.shape[0]} rows")
+
+print("\nApplying log1p transformation to 'Amount' column...")
+df["Amount"] = np.log1p(df["Amount"])
+
+print(f"Amount statistics after log1p:")
+print(df["Amount"].describe().round(4))
 
 print("\nStandardizing 'Amount' column using StandardScaler...")
 scaler = StandardScaler()
