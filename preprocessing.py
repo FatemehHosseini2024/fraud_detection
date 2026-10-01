@@ -12,9 +12,8 @@ print("=" * 70)
 df = pd.read_csv(DATA_PATH)
 print(f"Original dataset: {df.shape[0]} rows x {df.shape[1]} columns")
 
-df = df.drop(columns=["Time"])
 df.insert(0, "transaction_id", range(len(df)))
-print("Replaced 'Time' with 'transaction_id' (unique values)")
+print("Added 'transaction_id' column (unique values)")
 
 dup_cols = [col for col in df.columns if col != "transaction_id"]
 dup_count = df.duplicated(subset=dup_cols).sum()
