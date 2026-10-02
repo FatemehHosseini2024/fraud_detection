@@ -125,18 +125,17 @@ for curve_name, proba in curves.items():
                     fontsize=7, color=colors[curve_name], alpha=0.8)
 
 # Axis settings
-ax.set_xlabel("Mean predicted probability (log scale)", fontsize=12)
+ax.set_xlabel("Mean predicted probability", fontsize=12)
 ax.set_ylabel("Fraction of actual positives (fraud rate in bin)", fontsize=12)
 ax.set_title("Reliability Diagram: RF + Calibration Curves\n"
              "5-fold OOF predictions, quantile bins", fontsize=13)
-ax.set_xscale("symlog", linthresh=0.01)
 ax.legend(loc="upper left", fontsize=10)
 ax.grid(True, alpha=0.3)
 
 # Annotation note
 ax.text(0.02, 0.98,
         "Annotation: frauds/samples per bin\n"
-        "symlog x-axis (linear near 0, log elsewhere)\n"
+        "Linear x-axis\n"
         "Diagonal = perfect calibration",
         transform=ax.transAxes, fontsize=8, verticalalignment="top",
         bbox=dict(boxstyle="round", facecolor="wheat", alpha=0.5))
