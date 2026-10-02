@@ -4,7 +4,7 @@ from collections import defaultdict
 
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
-from lightgbm import LGBMClassifier
+from xgboost import XGBClassifier
 from sklearn.metrics import average_precision_score, precision_score, recall_score
 
 from pipeline import prepare_data
@@ -25,7 +25,7 @@ print(f"Number of CV folds: {len(folds)}")
 models = {
     "LogisticRegression": LogisticRegression(max_iter=1000, random_state=RANDOM_STATE, n_jobs=1),
     "RandomForest": RandomForestClassifier(random_state=RANDOM_STATE, n_jobs=1),
-    "LightGBM": LGBMClassifier(random_state=RANDOM_STATE, verbose=-1),
+    "XGBoost": XGBClassifier(random_state=RANDOM_STATE, eval_metric="logloss", n_jobs=1),
 }
 
 # Collect results: {model_name: {metric: [fold1, fold2, ..., fold5]}}
