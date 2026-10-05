@@ -103,14 +103,15 @@ print(f"\nConfusion Matrix (threshold={LOCKED_THRESHOLD}):")
 print(f"  TP: {tp}, FN: {fn}, FP: {fp}, TN: {tn}")
 print(f"  Precision: {tp/(tp+fp):.4f}")
 print(f"  Recall:    {tp/(tp+fn):.4f}")
-print(f"  F2 Score:  {2*tp/(2*tp+fn+fp):.4f}")
-print(f"  F1 Score:  {2*tp/(2*tp+fn+fp)*tp/(tp+fn)/tp*2 if tp>0 else 0:.4f}")
 
-# F1 manually
+# F1 and F2 come from sklearn, not from a hand-rolled closed form. The closed forms
+# differ: F1 = 2TP/(2TP+FP+FN) and F2 = 5TP/(5TP+4FN+FP). Using one for the other is wrong.
 prec = tp/(tp+fp) if (tp+fp) > 0 else 0
 rec = tp/(tp+fn) if (tp+fn) > 0 else 0
-f1 = 2*prec*rec/(prec+rec) if (prec+rec) > 0 else 0
+f1 = fbeta_score(y_test, test_pred, beta=1, zero_division=0)
+f2 = fbeta_score(y_test, test_pred, beta=2, zero_division=0)
 print(f"  F1 Score:  {f1:.4f}")
+print(f"  F2 Score:  {f2:.4f}")
 
 # Additional metrics
 pr_auc = average_precision_score(y_test, test_iso_proba)
@@ -149,8 +150,8 @@ oof_tp = ((oof_pred == 1) & (oof_y == 1)).sum()
 oof_fn = ((oof_pred == 0) & (oof_y == 1)).sum()
 oof_fp = ((oof_pred == 1) & (oof_y == 0)).sum()
 
-print(f"OOF  - Precision: {oof_tp/(oof_tp+oof_fp):.4f}, Recall: {oof_tp/(oof_tp+oof_fn):.4f}, F2: {2*oof_tp/(2*oof_tp+oof_fn+oof_fp):.4f}")
-print(f"Test - Precision: {tp/(tp+fp):.4f}, Recall: {tp/(tp+fn):.4f}, F2: {2*tp/(2*tp+fn+fp):.4f}")
+print(f"OOF  - Precision: {oof_tp/(oof_tp+oof_fp):.4f}, Recall: {oof_tp/(oof_tp+oof_fn):.4f}, F2: {fbeta_score(oof_y, oof_pred, beta=2, zero_division=0):.4f}")
+print(f"Test - Precision: {tp/(tp+fp):.4f}, Recall: {tp/(tp+fn):.4f}, F2: {f2:.4f}")
 
 print("\nFinal evaluation complete.")
 
@@ -161,7 +162,7 @@ results = {
         "tp": int(tp), "fn": int(fn), "fp": int(fp), "tn": int(tn),
         "precision": float(tp/(tp+fp)),
         "recall": float(tp/(tp+fn)),
-        "f2": float(2*tp/(2*tp+fn+fp)),
+        "f2": float(f2),
         "f1": float(f1),
         "pr_auc": float(pr_auc),
         "roc_auc": float(roc_auc),
@@ -171,7 +172,7 @@ results = {
         "tp": int(oof_tp), "fn": int(oof_fn), "fp": int(oof_fp),
         "precision": float(oof_tp/(oof_tp+oof_fp)),
         "recall": float(oof_tp/(oof_tp+oof_fn)),
-        "f2": float(2*oof_tp/(2*oof_tp+oof_fn+oof_fp))
+        "f2": float(fbeta_score(oof_y, oof_pred, beta=2, zero_division=0))
     }
 }
 

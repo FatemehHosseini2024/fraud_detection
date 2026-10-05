@@ -83,7 +83,8 @@ tn = ((oof_pred == 0) & (oof_y == 0)).sum()
 print(f"\nConfusion Matrix (threshold={LOCKED_THRESHOLD:.6f}):")
 print(f"  TP: {tp}, FN: {fn}, FP: {fp}, TN: {tn}")
 print(f"  Precision: {tp/(tp+fp):.4f}, Recall: {tp/(tp+fn):.4f}")
-print(f"  F2: {2*tp/(2*tp+fn+fp):.4f}")
+print(f"  F1: {fbeta_score(oof_y, oof_pred, beta=1, zero_division=0):.4f}, "
+      f"F2: {fbeta_score(oof_y, oof_pred, beta=2, zero_division=0):.4f}")
 
 # Create analysis dataframe with original indices
 all_val_indices = []
