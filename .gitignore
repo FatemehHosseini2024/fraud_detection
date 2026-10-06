@@ -2,3 +2,5 @@ creditcard.csv
 eda_outputs/
 __pycache__/
 *.pyc
+# MLflow local tracking store - a build artifact, never commit it
+mlruns/

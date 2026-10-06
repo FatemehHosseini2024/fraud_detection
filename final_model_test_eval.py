@@ -35,6 +35,8 @@ from sklearn.metrics import (
 from sklearn.model_selection import StratifiedKFold
 
 from pipeline import prepare_data
+from mlflow_helpers import start_run, log_json_artifact, log_dataframe
+import mlflow
 
 RANDOM_STATE = 42
 N_FOLDS = 5
@@ -307,6 +309,16 @@ print("\n" + "-" * 78)
 print("STAGE 2 - FINAL MODEL: fit on 100% of train, evaluate test once")
 print("-" * 78)
 
+run = start_run(
+    "final_model_test_eval",
+    tags={
+        "stage": "final",
+        "trained_on": "100% of train",
+        "evaluated_on": "test (single evaluation)",
+        "test_data": "never fitted on",
+    },
+)
+
 rf_full = make_rf()
 rf_full.fit(X_train, y_train)
 print(f"  Final RF trained on all {X_train.shape[0]} train rows")
@@ -472,6 +484,75 @@ results = {
         "mse_iso": mse_iso,
     },
 }
+
+# --- MLflow: log the final model's params, metrics and artifacts ---
+mlflow.log_param("estimator", "RandomForestClassifier(random_state=42, n_jobs=-1), sklearn defaults")
+mlflow.log_param("calibrator", "IsotonicRegression(out_of_bounds='clip') fitted on train OOF")
+mlflow.log_param("cv", f"StratifiedKFold(n_splits={N_FOLDS}, shuffle=True, random_state={RANDOM_STATE})")
+mlflow.log_param("locked_threshold", LOCKED_THRESHOLD)
+mlflow.log_param("trained_on", "100% of train")
+mlflow.log_param("evaluated_on", "test (single evaluation, nothing fitted on test)")
+mlflow.log_param("bootstrap_n", N_BOOTSTRAP)
+mlflow.log_param("bootstrap_seed", RANDOM_STATE)
+
+mlflow.log_metric("test_threshold", float(LOCKED_THRESHOLD))
+mlflow.log_metric("test_pr_auc", float(test_metrics["pr_auc"]))
+mlflow.log_metric("test_roc_auc", float(test_metrics["roc_auc"]))
+mlflow.log_metric("test_brier", float(test_metrics["brier"]))
+mlflow.log_metric("test_precision", float(test_metrics["precision"]))
+mlflow.log_metric("test_recall", float(test_metrics["recall"]))
+mlflow.log_metric("test_f1", float(test_metrics["f1"]))
+mlflow.log_metric("test_f2", float(test_metrics["f2"]))
+mlflow.log_metric("test_tp", int(test_metrics["tp"]))
+mlflow.log_metric("test_fp", int(test_metrics["fp"]))
+mlflow.log_metric("test_fn", int(test_metrics["fn"]))
+mlflow.log_metric("test_tn", int(test_metrics["tn"]))
+mlflow.log_metric("test_n", int(tot))
+mlflow.log_metric("test_n_frauds", int(y_test.sum()))
+mlflow.log_metric("test_flagged_rate", float(test_pred.sum() / tot))
+
+for k in ["pr_auc", "brier", "precision", "recall", "f1", "f2"]:
+    c = test_ci[k]
+    mlflow.log_metric(f"test_{k}_ci_low", float(c["ci_95_low"]))
+    mlflow.log_metric(f"test_{k}_ci_high", float(c["ci_95_high"]))
+    mlflow.log_metric(f"test_{k}_bootstrap_mean", float(c["mean"]))
+    mlflow.log_metric(f"test_{k}_bootstrap_n", int(c["n_valid"]))
+
+# Reference (error_analysis_fast config on train OOF) - same locked threshold
+mlflow.log_metric("ref_pr_auc", float(oof_metrics["pr_auc"]))
+mlflow.log_metric("ref_roc_auc", float(oof_metrics["roc_auc"]))
+mlflow.log_metric("ref_brier", float(oof_metrics["brier"]))
+mlflow.log_metric("ref_precision", float(oof_metrics["precision"]))
+mlflow.log_metric("ref_recall", float(oof_metrics["recall"]))
+mlflow.log_metric("ref_f1", float(oof_metrics["f1"]))
+mlflow.log_metric("ref_f2", float(oof_metrics["f2"]))
+mlflow.log_metric("ref_tp", int(oof_metrics["tp"]))
+mlflow.log_metric("ref_fp", int(oof_metrics["fp"]))
+mlflow.log_metric("ref_fn", int(oof_metrics["fn"]))
+mlflow.log_metric("ref_tn", int(oof_metrics["tn"]))
+
+# Calibration on test
+mlflow.log_metric("test_ece_raw", float(ece_raw))
+mlflow.log_metric("test_ece_iso", float(ece_iso))
+mlflow.log_metric("test_mse_raw", float(mse_raw))
+mlflow.log_metric("test_mse_iso", float(mse_iso))
+mlflow.log_metric("test_brier_raw", float(brier_score_loss(y_test, test_raw)))
+mlflow.log_metric("test_brier_iso", float(test_metrics["brier"]))
+mlflow.log_metric("test_iso_levels", int(len(np.unique(test_iso))))
+
+# Deltas vs the reference config
+for k in ["pr_auc", "brier", "precision", "recall", "f1", "f2", "roc_auc"]:
+    mlflow.log_metric(f"delta_{k}", float(test_metrics[k] - oof_metrics[k]))
+
+# Register the fitted model so it can be served later
+mlflow.sklearn.log_model(rf_full, "model", registered_model_name="fraud_rf_default")
+
+log_json_artifact(results, "final_model_test_eval.json")
+log_dataframe(bin_df, "final_test_calibration_bins.csv", artifact_path="metrics")
+mlflow.log_artifact(CALIB_PNG, artifact_path="metrics")
+mlflow.log_artifact(RESULTS_JSON, artifact_path="metrics")
+
+mlflow.end_run()
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 with open(RESULTS_JSON, "w") as f:

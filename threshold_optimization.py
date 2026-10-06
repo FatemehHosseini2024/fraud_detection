@@ -8,6 +8,8 @@ from sklearn.metrics import average_precision_score, precision_score, recall_sco
 from sklearn.isotonic import IsotonicRegression
 
 from pipeline import prepare_data
+from mlflow_helpers import start_run, log_json_artifact
+import mlflow
 
 RANDOM_STATE = 42
 N_FOLDS = 5
@@ -19,6 +21,11 @@ warnings.filterwarnings("ignore")
 print("=" * 70)
 print("THRESHOLD OPTIMIZATION: Default RF + Isotonic (OOF only)")
 print("=" * 70)
+
+run = start_run(
+    "threshold_optimization",
+    tags={"stage": "threshold", "data": "train OOF only", "test": "not evaluated"},
+)
 
 # 1. Load data and get OOF predictions
 df, train, test, _ = prepare_data()
@@ -229,11 +236,49 @@ output = {
     "all_criteria": {
         "max_f1": {k: float(v) for k, v in best_f1.items()},
         "max_f2": {k: float(v) for k, v in best_f2.items()},
-        "precision_floors": {str(k): {kk: float(vv) for kk, vv in v.items()} if v is not None else None 
+        "precision_floors": {str(k): {kk: float(vv) for kk, vv in v.items()} if v is not None else None
                             for k, v in floor_results.items()},
     },
     "threshold_grid": results_df.to_dict(orient="records"),
 }
+
+# --- MLflow: log params, metrics and the threshold artifact ---
+mlflow.log_param("random_state", RANDOM_STATE)
+mlflow.log_param("n_folds", N_FOLDS)
+mlflow.log_param("n_bootstrap", N_BOOTSTRAP)
+mlflow.log_param("precision_floors", PRECISION_FLOORS)
+mlflow.log_param("estimator", "RandomForestClassifier(random_state=42, n_jobs=-1)")
+mlflow.log_param("calibrator", "IsotonicRegression(out_of_bounds='clip')")
+mlflow.log_param("criterion", "max_f2")
+
+mlflow.log_metric("locked_threshold", float(locked_threshold))
+mlflow.log_metric("oof_precision", float(locked_prec))
+mlflow.log_metric("oof_recall", float(locked_rec))
+mlflow.log_metric("oof_f1", float(locked_f1))
+mlflow.log_metric("oof_f2", float(locked_f2))
+mlflow.log_metric("oof_pr_auc", float(average_precision_score(oof_y, oof_iso)))
+mlflow.log_metric("oof_brier", float(brier_score_loss(oof_y, oof_iso)))
+mlflow.log_metric("candidate_thresholds_count", len(candidate_thresholds))
+mlflow.log_metric("max_f1_threshold", float(best_f1["threshold"]))
+mlflow.log_metric("max_f1_f1", float(best_f1["f1"]))
+
+for floor in PRECISION_FLOORS:
+    if floor_results[floor] is not None:
+        mlflow.log_metric(f"floor_{floor:.2f}_threshold", float(floor_results[floor]["threshold"]))
+        mlflow.log_metric(f"floor_{floor:.2f}_precision", float(floor_results[floor]["precision"]))
+        mlflow.log_metric(f"floor_{floor:.2f}_recall", float(floor_results[floor]["recall"]))
+        mlflow.log_metric(f"floor_{floor:.2f}_f2", float(floor_results[floor]["f2"]))
+
+for key, vals in bootstrap_stats.items():
+    if len(vals) > 0:
+        vals = np.array(vals)
+        mlflow.log_metric(f"bootstrap_{key}_median", float(np.median(vals)))
+        mlflow.log_metric(f"bootstrap_{key}_ci_low", float(np.percentile(vals, 2.5)))
+        mlflow.log_metric(f"bootstrap_{key}_ci_high", float(np.percentile(vals, 97.5)))
+        mlflow.log_metric(f"bootstrap_{key}_n", len(vals))
+
+log_json_artifact(output, "threshold_optimization.json")
+mlflow.log_artifact("eda_outputs/threshold_optimization.json", artifact_path="metrics")
 
 import os
 os.makedirs("eda_outputs", exist_ok=True)
@@ -242,3 +287,5 @@ with open("eda_outputs/threshold_optimization.json", "w") as f:
 
 print(f"\nResults saved to eda_outputs/threshold_optimization.json")
 print("\nThreshold optimization complete (OOF only, Test not evaluated).")
+
+mlflow.end_run()

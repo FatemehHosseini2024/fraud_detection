@@ -10,6 +10,8 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.isotonic import IsotonicRegression
 
 from pipeline import prepare_data
+from mlflow_helpers import start_run, log_json_artifact
+import mlflow
 
 RANDOM_STATE = 42
 N_FOLDS = 5
@@ -78,6 +80,11 @@ for config in TOP_CONFIGS:
     print(f"CONFIG: {name}")
     print(f"{'='*70}")
     print(f"Params: {config}")
+
+    run = start_run(
+        f"stage2_{name}",
+        tags={"stage": "model_selection", "config": name, "folds": str(N_FOLDS)},
+    )
     
     # Base params
     base_params = {
@@ -167,7 +174,40 @@ for config in TOP_CONFIGS:
     }
     
     all_results[name] = result
-    
+
+    # --- MLflow: log this config's params and metrics ---
+    mlflow.log_param("config", name)
+    for k, v in config.items():
+        mlflow.log_param(k, v)
+    mlflow.log_param("n_jobs", -1)
+    mlflow.log_param("criterion", "gini")
+    mlflow.log_param("bootstrap", True)
+    mlflow.log_param("class_weight", None)
+    mlflow.log_param("random_state", RANDOM_STATE)
+    mlflow.log_param("calibrator", "IsotonicRegression(out_of_bounds='clip')")
+
+    mlflow.log_metric("mean_pr_auc", float(mean_pr_auc))
+    mlflow.log_metric("std_pr_auc", float(std_pr_auc))
+    mlflow.log_metric("mean_brier", float(mean_brier))
+    mlflow.log_metric("std_brier", float(std_brier))
+    mlflow.log_metric("overall_pr_auc", float(overall_pr_auc))
+    mlflow.log_metric("overall_brier", float(overall_brier))
+    mlflow.log_metric("isotonic_pr_auc", float(iso_pr_auc))
+    mlflow.log_metric("isotonic_brier", float(iso_brier))
+    mlflow.log_metric("mean_time_s", float(np.mean(fold_times)))
+
+    for fold in fold_results:
+        mlflow.log_metric(f"fold_{fold['fold']}_pr_auc", float(fold["pr_auc"]))
+        mlflow.log_metric(f"fold_{fold['fold']}_brier", float(fold["brier"]))
+        mlflow.log_metric(f"fold_{fold['fold']}_time_s", float(fold["time"]))
+
+    log_json_artifact(result, f"{name}.json")
+    mlflow.log_artifact(f"eda_outputs/stage2_{name}_raw_proba.npy", artifact_path="predictions")
+    mlflow.log_artifact(f"eda_outputs/stage2_{name}_iso_proba.npy", artifact_path="predictions")
+    mlflow.log_artifact(f"eda_outputs/stage2_{name}_y_val.npy", artifact_path="predictions")
+
+    mlflow.end_run()
+
     print(f"\n  Mean PR-AUC (per-fold): {mean_pr_auc:.4f} ± {std_pr_auc:.4f}")
     print(f"  Overall PR-AUC (aggregated): {overall_pr_auc:.4f}")
     print(f"  Mean Brier (per-fold): {mean_brier:.6f} ± {std_brier:.6f}")
