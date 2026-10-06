@@ -1,12 +1,18 @@
+import os
+
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split, StratifiedKFold
 
+from assemble_data import assemble
+
 DATA_PATH = "creditcard.csv"
 
 
 def prepare_data():
+    if not os.path.exists(DATA_PATH):
+        assemble()
     df = pd.read_csv(DATA_PATH)
 
     df = df.drop_duplicates().reset_index(drop=True)
