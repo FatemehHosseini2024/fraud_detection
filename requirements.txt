@@ -1,0 +1,24 @@
+# Fraud detection project dependencies.
+#
+# Install with:  pip install -r requirements.txt
+#
+# Pinned so Streamlit Cloud builds reproducibly. mlflow is pinned to 2.19.0: it is
+# the version that was installed and tested against this project, and it is the
+# minimum that provides mlflow.sklearn.log_model with model registration.
+#
+# Streamlit Cloud note: the app itself (app.py) is the only file Streamlit runs.
+# These are the dependencies the *training* scripts need; the app imports a
+# subset of them, so Streamlit only installs what is actually imported.
+
+scikit-learn==1.7.2
+numpy==2.2.6
+pandas==2.3.3
+matplotlib==3.10.7
+seaborn==0.13.2
+scipy==1.16.2
+mlflow==2.19.0
+pyarrow==18.1.0
+streamlit==1.48.0
+
+# Optional: only the model-selection script (model_selection.py) needs this.
+# xgboost==3.2.0
